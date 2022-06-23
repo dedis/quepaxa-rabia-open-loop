@@ -99,6 +99,9 @@ func ServerInit(svrId uint32, proxyIp, netIp string) *Server {
 		s.ConExecutorToNet, s.NetToMsgHandler, s.NetToConExecutor)
 	s.Consensus = consensus.ConsensusInit(svrId, 0, s.Done, s.Wg, s.NetToMsgHandler,
 		s.MsgHandlerToNet, s.NetToConExecutor, s.ConExecutorToNet, s.Ledger)
+	pid := os.Getpid()
+	fmt.Printf("initialized server %v with process id: %v \n", s.SvrId, pid)
+
 	return s
 }
 

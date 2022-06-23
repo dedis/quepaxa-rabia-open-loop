@@ -58,6 +58,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"os"
 	"path"
 	. "rabia/internal/config"
 	. "rabia/internal/message"
@@ -85,14 +86,15 @@ func RunController() {
 	c.connect()
 	fmt.Println("all servers and clients are connected")
 	c.MsgToClients() // start the clients
-	printArt()
+	//printArt()
 	c.waitClientReplies() // clients report they are stopped
 	fmt.Println("received from all clients")
 
 	c.MsgToServers() // controller stops all servers
 	fmt.Println("sent to all servers")
-	c.waitServerReplies() // all servers are stopped
-	fmt.Println("received from all servers")
+	//c.waitServerReplies() // all servers are stopped
+	//fmt.Println("received from all servers")
+	time.Sleep(10 * time.Second)
 }
 
 /*
@@ -103,7 +105,8 @@ func controllerInit() *Controller {
 	if err != nil {
 		panic(fmt.Sprint("should not happen", err))
 	}
-
+	pid := os.Getpid()
+	fmt.Printf("initialized controller with process id: %v \n", pid)
 	return &Controller{
 		Listener: listener,
 
@@ -211,7 +214,7 @@ func (c *Controller) MsgToServers() { // stop servers
 		r := Command{}
 		err := r.MarshalWriteFlush(rw.Writer)
 		if err != nil {
-			panic(fmt.Sprint("should not happen", err))
+			//panic(fmt.Sprint("should not happen", err))
 		}
 	}
 }
@@ -225,7 +228,7 @@ func (c *Controller) waitServerReplies() { // server stopped
 		readBuf := make([]byte, 20)
 		err := r.ReadUnmarshal(rw.Reader, readBuf)
 		if err != nil {
-			panic(fmt.Sprint("should not happen", err))
+			//panic(fmt.Sprint("should not happen", err))
 		}
 		if r.CliSeq != 2 {
 			panic(fmt.Sprint("should not happen", err))
