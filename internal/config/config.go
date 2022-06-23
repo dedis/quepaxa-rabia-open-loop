@@ -118,7 +118,7 @@ func (c *Config) loadEnvVars1() {
 	c.SvrIp = os.Getenv("RC_SvrIp")
 	c.ProxyPort = os.Getenv("RC_PPort")
 	c.NetworkPort = os.Getenv("RC_NPort")
-	c.Peers = strings.Split(os.Getenv("RC_Peers"), " ")
+	c.Peers = strings.Split(os.Getenv("RC_Peers"), ",")
 
 	c.ProxyAddr = os.Getenv("RC_Proxy")
 }
