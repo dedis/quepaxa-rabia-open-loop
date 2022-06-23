@@ -76,6 +76,7 @@ type Config struct {
 	ProxyBatchTimeout   time.Duration // the max. time between submitting requests (ms, Millisecond)
 	NetworkBatchSize    int           // reserved
 	NetworkBatchTimeout time.Duration // reserved (ms, Millisecond)
+	ClientArrivalRate   int           // arrival Rate
 
 	/*
 		Sec 2. load these fields from the LoadConst function, they are not assigned from environment variables because
@@ -142,6 +143,7 @@ func (c *Config) loadEnvVars2() {
 	Conf.ClientTimeout = time.Duration(getEnvInt("Rabia_ClientTimeout")) * time.Second
 	Conf.ClientThinkTime = getEnvInt("Rabia_ClientThinkTime")
 	Conf.NClientRequests = getEnvInt("Rabia_ClientNRequests")
+	Conf.ClientArrivalRate = getEnvInt("Rabia_ClientArrivalRate")
 }
 
 func (c *Config) CalcConstants() {

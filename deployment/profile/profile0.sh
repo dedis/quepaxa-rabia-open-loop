@@ -105,6 +105,7 @@ NetworkBatchTimeout:  a reserved variable
 NClientRequests:      if set to 0, then it becomes the default value 10000000 -- a very large number
                       if open-loop: the number of un-batched requests per client (1, 2, 3, ... usually 10000 or 100000);
                       if closed-loop: a client times out after reaching ClientTimeout time or receiving this many un-batched requests (usually 0 and use ClientTimeout to control the runtime)
+ClientArrivalRate:    client arrival rate in requests per seconds                      
 END
 
 # Section 1. user configurations - type 1 (see comments above for their meanings)
@@ -136,6 +137,7 @@ ProxyBatchTimeout=10
 NetworkBatchSize=0
 NetworkBatchTimeout=0
 NClientRequests=0
+ClientArrivalRate=3000
 
 : <<'END'
     No need to modify variables and functions beyond this line 
@@ -218,7 +220,7 @@ export_variables() {
     export Rabia_ClosedLoop=${Rabia_ClosedLoop}
 
     export Rabia_NServers=$NServers Rabia_NFaulty=$NFaulty Rabia_NClients=$NClients Rabia_NConcurrency=$NConcurrency
-    export Rabia_ClientBatchSize=$ClientBatchSize Rabia_ClientTimeout=$ClientTimeout Rabia_ClientThinkTime=$ClientThinkTime Rabia_ClientNRequests=$NClientRequests
+    export Rabia_ClientBatchSize=$ClientBatchSize Rabia_ClientTimeout=$ClientTimeout Rabia_ClientThinkTime=$ClientThinkTime Rabia_ClientNRequests=$NClientRequests Rabia_ClientArrivalRate=$ClientArrivalRate
     export Rabia_ProxyBatchSize=$ProxyBatchSize Rabia_ProxyBatchTimeout=$ProxyBatchTimeout Rabia_NetworkBatchSize=$NetworkBatchSize Rabia_NetworkBatchTimeout=$NetworkBatchTimeout
 }
 

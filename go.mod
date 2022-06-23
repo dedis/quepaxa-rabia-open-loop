@@ -7,4 +7,5 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/rs/zerolog v1.23.0
 	google.golang.org/protobuf v1.26.0
+	github.com/montanaflynn/stats v0.6.6 // indirect
 )

@@ -82,7 +82,7 @@ func RunServer(idx uint32) {
 */
 func RunClient(idx uint32) {
 	// Initialization and proxy connection, see comments inside functions
-	cli := client.ClientInit(idx, Conf.ProxyAddr)
+	cli := client.ClientInit(idx, Conf.ProxyAddr, Conf.ClientArrivalRate)
 	cli.Prologue()
 
 	// Initiate a command receiver that listens to the benchmark controller
@@ -92,11 +92,7 @@ func RunClient(idx uint32) {
 	receiver.WaitController()
 
 	// The client's main task and the exit actions
-	if Conf.ClosedLoop {
-		cli.CloseLoopClient()
-	} else {
-		cli.OpenLoopClient()
-	}
+	cli.OpenLoopClient()
 	cli.Epilogue()
 
 	// Notify the controller that this client has exited

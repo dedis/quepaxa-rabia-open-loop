@@ -14,11 +14,8 @@
     limitations under the License.
 */
 /*
-	The client package defines the struct and functions of a Rabia client. There are two types of clients, open-loop
-	ones and closed-loop ones. The former sends requests one after another until they send Conf.NClientRequests
-	requests, and waits are requests are replied. The latter waits for a reply after sending a request until the
-	benchmark time ends, i.e., when Conf.ClientTimeout is reached. Each request contains one more key-value store
-	operations.
+	The client package defines the struct and functions of a Rabia client. The client sends batches of requests one after another
+ 	in a poisson loop for a ClientTimeout period. Each request contains one more key-value store operations.
 
 	Note:
 
@@ -36,6 +33,7 @@ package client
 
 import (
 	"fmt"
+	"github.com/montanaflynn/stats"
 	"github.com/rs/zerolog"
 	"math"
 	"math/rand"
@@ -46,8 +44,6 @@ import (
 	"rabia/internal/rstring"
 	"rabia/internal/system"
 	"rabia/internal/tcp"
-	"sort"
-	"sync"
 	"time"
 )
 
@@ -59,6 +55,7 @@ type BatchedCmdLog struct {
 	SendTime    time.Time     // the send time of this client-batched command
 	ReceiveTime time.Time     // the receive time of client-batched command
 	Duration    time.Duration // the calculate latency of this command (ReceiveTime - SendTime)
+	Sent        bool          // whether this slot is sent or not
 }
 
 /*
@@ -66,7 +63,6 @@ type BatchedCmdLog struct {
 */
 type Client struct {
 	ClientId uint32
-	Wg       *sync.WaitGroup // wait any subroutines
 	Done     chan struct{}
 
 	TCP     *tcp.ClientTCP
@@ -74,19 +70,21 @@ type Client struct {
 	Logger  zerolog.Logger // the real-time server log that help to track throughput and the number of connections
 	LogFile *os.File       // the log file that should be called .Sync() method before the routine exits
 
-	CommandLog                             []BatchedCmdLog
-	SentSoFar, ReceivedSoFar               int
-	startSending, endSending, endReceiving time.Time
+	CommandLog               []BatchedCmdLog
+	SentSoFar, ReceivedSoFar int
+
+	arrivalRate     int        // requests per second poisson rate as specified
+	arrivalTimeChan chan int64 // channel which stores the new arrival times
+	arrivalChan     chan bool  // channel that triggers new open loop requests
 }
 
 /*
 	Initialize a Rabia client
 */
-func ClientInit(clientId uint32, proxyIp string) *Client {
+func ClientInit(clientId uint32, proxyIp string, arrivalRate int) *Client {
 	zerologger, logFile := logger.InitLogger("client", clientId, 0, "both")
 	c := &Client{
 		ClientId: clientId,
-		Wg:       &sync.WaitGroup{},
 		Done:     make(chan struct{}),
 
 		TCP:     tcp.ClientTcpInit(clientId, proxyIp),
@@ -94,12 +92,18 @@ func ClientInit(clientId uint32, proxyIp string) *Client {
 		Logger:  zerologger,
 		LogFile: logFile,
 
-		CommandLog: make([]BatchedCmdLog, Conf.NClientRequests/Conf.ClientBatchSize),
+		CommandLog:      make([]BatchedCmdLog, 0),
+		arrivalRate:     arrivalRate,
+		arrivalTimeChan: make(chan int64, Conf.LenChannel),
+		arrivalChan:     make(chan bool, Conf.LenChannel),
 	}
 	/*
 		SentSoFar, ReceivedSoFar are zeros are initialization
-		startSending, endSending, endReceiving retain their default values
 	*/
+
+	pid := os.Getpid()
+	fmt.Printf("initialized client %v with process id: %v \n", c.ClientId, pid)
+
 	return c
 }
 
@@ -130,56 +134,78 @@ func (c *Client) Epilogue() {
 }
 
 /*
-	The main body of a closed-loop client.
-	A closed-loop client sends one (batched) request and waits for a reply at a time. In waiting for a reply, if the
-	client finds the Conf.ClientTimeout time is reached, it exits the loop.
-
+	The main body of an open-loop client.
 */
-func (c *Client) CloseLoopClient() {
-	c.startSending = time.Now()
-	ticker := time.NewTicker(Conf.ClientTimeout)
-MainLoop:
-	for i := 0; i < Conf.NClientRequests/Conf.ClientBatchSize; i++ {
-		c.sendOneRequest(i)
-		select {
-		case rep := <-c.TCP.RecvChan:
-			c.processOneReply(rep)
-		case <-ticker.C:
-			break MainLoop
-		}
-	}
-	c.endSending = time.Now()
-	c.endReceiving = time.Now()
-}
 
-/*
-	The main body of a open-loop client.
-*/
 func (c *Client) OpenLoopClient() {
-	c.Wg.Add(2)
+
+	c.generateArrivalTimes()
+
 	go func() {
-		c.startSending = time.Now()
-		for i := 0; i < Conf.NClientRequests/Conf.ClientBatchSize; i++ {
-			if c.SentSoFar-c.ReceivedSoFar >= 10000*Conf.ClientBatchSize {
-				time.Sleep(500 * time.Millisecond)
-				i--
-				continue
+		i := 0
+		for true {
+			numRequests := 0
+			for !(numRequests == Conf.ClientBatchSize) {
+				_ = <-c.arrivalChan // keep collecting new requests arrivals
+				numRequests++
 			}
 			c.sendOneRequest(i)
+			i++
 		}
-		fmt.Println(c.ClientId, "client requests all sent")
-		c.endSending = time.Now()
-		c.Wg.Done()
+
 	}()
+
 	go func() {
-		for i := 0; i < Conf.NClientRequests/Conf.ClientBatchSize; i++ {
+		for true {
 			rep := <-c.TCP.RecvChan
 			c.processOneReply(rep)
 		}
-		c.endReceiving = time.Now()
-		c.Wg.Done()
 	}()
-	c.Wg.Wait()
+
+	c.startScheduler()                       // this runs in the main loop
+	time.Sleep(10 * time.Second)             // for inflight requests
+	time.Sleep(time.Duration(rand.Intn(10))) // a hack to avoid clients finishing at the same time
+}
+
+/*
+	Until the test duration is arrived, fetch new arrivals and inform the request generator thread
+*/
+
+func (c *Client) startScheduler() {
+	start := time.Now()
+
+	for time.Now().Sub(start).Nanoseconds() < Conf.ClientTimeout.Nanoseconds() { // run until test completion
+		nextArrivalTime := <-c.arrivalTimeChan
+
+		for time.Now().Sub(start).Nanoseconds() < nextArrivalTime {
+			// busy waiting until the time to dispatch this request arrives
+		}
+		c.arrivalChan <- true
+	}
+}
+
+/*
+	Generates Poisson arrival times
+*/
+
+func (c *Client) generateArrivalTimes() {
+	go func() {
+		lambda := float64(c.arrivalRate) / (1000.0 * 1000.0 * 1000.0) // requests per nano second
+		arrivalTime := 0.0
+
+		for true {
+			// Get the next probability value from Uniform(0,1)
+			p := rand.Float64()
+
+			//Plug it into the inverse of the CDF of Exponential(_lamnbda)
+			interArrivalTime := -1 * (math.Log(1.0-p) / lambda)
+
+			// Add the inter-arrival time to the running sum
+			arrivalTime = arrivalTime + interArrivalTime
+
+			c.arrivalTimeChan <- int64(arrivalTime)
+		}
+	}()
 }
 
 /*
@@ -197,10 +223,17 @@ func (c *Client) sendOneRequest(i int) {
 			rstring.RandString(c.Rand, Conf.ValLen))
 		obj.Commands[j] = val
 	}
-
-	time.Sleep(time.Duration(Conf.ClientThinkTime) * time.Millisecond)
-
+	for len(c.CommandLog) <= i+1000 { // create new entries
+		c.CommandLog = append(c.CommandLog, BatchedCmdLog{
+			SendTime:    time.Time{},
+			ReceiveTime: time.Time{},
+			Duration:    0,
+			Sent:        false,
+		})
+	}
 	c.CommandLog[i].SendTime = time.Now()
+	c.CommandLog[i].Sent = true
+
 	c.TCP.SendChan <- obj
 	c.SentSoFar += Conf.ClientBatchSize
 }
@@ -248,86 +281,66 @@ func (c *Client) terminalLogger() {
 }
 
 /*
-	Note: logs produced from there are for eye-inspection, they are often baised in telling how the system performs.
-	Maybe consider using the log produced from the system-end to calculate throughput and latencies.
+	Converts int[] to float64[]
+*/
+
+func (c *Client) getFloat64List(list []int64) []float64 {
+	var array []float64
+	for i := 0; i < len(list); i++ {
+		array = append(array, float64(list[i]))
+	}
+	return array
+}
+
+/*
+	Calculate stats
 */
 func (c *Client) writeToLog() {
-	RepliedLength := len(c.CommandLog) // assume all replied
+
+	var latencyList []int64 // contains the time duration spent for each successful request in micro seconds
+	noResponses := 0        // number of requests for which no response was received
+	totalRequests := 0      // total number of requests sent
+
 	for i := 0; i < len(c.CommandLog); i++ {
-		if c.CommandLog[i].Duration == time.Duration(0) {
-			//c.Logger.Warn("", Int("not replied", i))
-			RepliedLength = i // update RepliedLength if necessary
-			break
+		if c.CommandLog[i].Sent == true { // if this slot was used before
+			if c.CommandLog[i].Duration != 0 { // if we got a response
+				latencyList = c.addValueNToArrayMTimes(latencyList, c.CommandLog[i].Duration.Microseconds(), Conf.ClientBatchSize)
+			} else { // no response
+				noResponses += Conf.ClientBatchSize
+			}
+			totalRequests += Conf.ClientBatchSize
 		}
 	}
-	//fmt.Println("RepliedLength =", RepliedLength)
 
-	// cmdLogs -- exclude head and tails statistics in BatchedCmdLog:
-	cmdLogs := make([]BatchedCmdLog, int(float64(RepliedLength)*0.8))
-	j := 0
-	for i := 0; i < len(c.CommandLog); i++ {
-		if i < int(float64(RepliedLength)*0.1) ||
-			i >= int(float64(RepliedLength)*0.9) {
-			continue
-		}
-		if j < len(cmdLogs) {
-			cmdLogs[j] = c.CommandLog[i]
-			j++
-		} else {
-			break
-		}
-	}
-	//fmt.Println("RepliedLength =", RepliedLength,
-	//	"len of cmdLogs = ", len(cmdLogs), ",", j, "items filled")
-
-	maxLatVal := time.Duration(0)
-	maxLatIdx := 0
-	for i, cmd := range cmdLogs {
-		if cmd.Duration > maxLatVal {
-			maxLatVal = cmd.Duration
-			maxLatIdx = i + int(float64(RepliedLength)*0.1)
-		}
-	}
-	mid80Start := cmdLogs[0].SendTime
-	mid80End := cmdLogs[len(cmdLogs)-1].ReceiveTime
-	mid80Dur := mid80End.Sub(mid80Start).Seconds()
-
-	mid80FirstRecvTime := cmdLogs[0].ReceiveTime
-	mid80RecvTimeDur := mid80End.Sub(mid80FirstRecvTime).Seconds()
-
-	sort.Slice(cmdLogs, func(i, j int) bool {
-		return cmdLogs[i].Duration < cmdLogs[j].Duration
-	})
-	minLat := cmdLogs[0].Duration
-	maxLat := cmdLogs[len(cmdLogs)-1].Duration
-	p50Lat := cmdLogs[int(float64(len(cmdLogs))*0.5)].Duration
-	p95Lat := cmdLogs[int(float64(len(cmdLogs))*0.9)].Duration
-	p99Lat := cmdLogs[int(float64(len(cmdLogs))*0.99)].Duration
-	var durSum int64
-	for _, v := range cmdLogs {
-		durSum += v.Duration.Microseconds()
-	}
-	durAvg := durSum / int64(len(cmdLogs))
+	medianLatency, _ := stats.Median(c.getFloat64List(latencyList))
+	percentile99, _ := stats.Percentile(c.getFloat64List(latencyList), 99.0) // tail latency
+	throughput := float64(len(latencyList)) / Conf.ClientTimeout.Seconds()
+	errorRate := (noResponses) * 100 / totalRequests
 
 	c.Logger.Warn().
 		Uint32("ClientId", c.ClientId).
 		Int("TotalSent", c.SentSoFar).
 		Int("TotalRecv", c.ReceivedSoFar).
-		Int64("minLat", minLat.Microseconds()).
-		Int64("maxLat", maxLat.Microseconds()).
-		Int("maxLatIdx", maxLatIdx).
-		Int64("avgLat", durAvg).
-		Int64("p50Lat", p50Lat.Microseconds()).
-		Int64("p95Lat", p95Lat.Microseconds()).
-		Int64("p99Lat", p99Lat.Microseconds()).
-		Int64("sendStart", c.startSending.UnixNano()).
-		Int64("sendEnd", c.endSending.UnixNano()).
-		Int64("recvEnd", c.endReceiving.UnixNano()).
-		Int64("mid80Start", mid80Start.UnixNano()).
-		Int64("mid80End", mid80End.UnixNano()).
-		Float64("mid80Dur", mid80Dur).
-		Float64("mid80RecvTimeDur", mid80RecvTimeDur).
-		Int("mid80Requests", len(cmdLogs)).
-		Float64("mid80Throughput (cmd/sec)", float64(len(cmdLogs))/mid80Dur).
-		Float64("mid80Throughput2 (cmd/sec)", float64(len(cmdLogs))/mid80RecvTimeDur).Msg("")
+		Int("Error rate", errorRate).
+		Int64("p50Latency micro seconds", int64(medianLatency)).
+		Int64("p99Latency micro seconds", int64(percentile99)).
+		Float64("Throughput (requests /sec)", throughput)
+
+	fmt.Printf("  Total Sent Requests:= %v ", c.SentSoFar)
+	fmt.Printf("  Total Received Responses:= %v   ", c.ReceivedSoFar)
+	fmt.Printf("  Throughput (successfully committed requests) := %v requests per second  ", throughput)
+	fmt.Printf("  Median Latency := %v micro seconds per request ", medianLatency)
+	fmt.Printf("  99 pecentile latency := %v micro seconds per request ", percentile99)
+	fmt.Printf("  Error Rate := %v \n", float64(errorRate))
+}
+
+/*
+	Add value N to list, M times
+*/
+
+func (c *Client) addValueNToArrayMTimes(list []int64, N int64, M int) []int64 {
+	for i := 0; i < M; i++ {
+		list = append(list, N)
+	}
+	return list
 }

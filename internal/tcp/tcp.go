@@ -114,7 +114,7 @@ func (c *ClientTCP) connect() {
 	cmd := &Command{CliId: c.Id}
 	err := cmd.MarshalWriteFlush(c.Writer)
 	if err != nil {
-		panic(err)
+		//panic(err)
 	}
 	c.Wg.Add(2)
 	go c.RecvHandler()
@@ -162,7 +162,7 @@ func (c *ClientTCP) SendHandler() {
 		case req := <-c.SendChan:
 			err := req.MarshalWriteFlush(c.Writer)
 			if err != nil {
-				panic(err)
+				//panic(err)
 			}
 		}
 	}
@@ -430,7 +430,7 @@ func (n *NetTCP) dialing() {
 		c := &Command{CliId: n.Id}
 		err = c.MarshalWriteFlush(n.Writers[i])
 		if err != nil {
-			panic(err)
+			//panic(err)
 		}
 	}
 }
