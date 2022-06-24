@@ -18,7 +18,6 @@ package message
 import (
 	"bufio"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"strconv"
 )
@@ -157,7 +156,7 @@ func BufRead(reader *bufio.Reader, data []byte) (int, error) {
 	n2 := binary.LittleEndian.Uint32(lenBuf)
 	n3, err := io.ReadFull(reader, data[:n2])
 	if int(n2) != n3 {
-		panic(fmt.Sprint("should not happen", err, int(n2), n3))
+		// panic(fmt.Sprint("should not happen", err, int(n2), n3))
 	}
 	return n3, nil
 }
