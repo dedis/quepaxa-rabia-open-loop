@@ -1,17 +1,17 @@
 /*
-    Copyright 2021 Rabia Research Team and Developers
+   Copyright 2021 Rabia Research Team and Developers
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+      http://www.apache.org/licenses/LICENSE-2.0
 
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 */
 /*
 	The client package defines the struct and functions of a Rabia client. The client sends batches of requests one after another
@@ -33,8 +33,7 @@ package client
 
 import (
 	"fmt"
-	"github.com/montanaflynn/stats"
-	"github.com/rs/zerolog"
+	"log"
 	"math"
 	"math/rand"
 	"os"
@@ -44,7 +43,11 @@ import (
 	"rabia/internal/rstring"
 	"rabia/internal/system"
 	"rabia/internal/tcp"
+	"strconv"
 	"time"
+
+	"github.com/montanaflynn/stats"
+	"github.com/rs/zerolog"
 )
 
 /*
@@ -76,6 +79,8 @@ type Client struct {
 	arrivalRate     int        // requests per second poisson rate as specified
 	arrivalTimeChan chan int64 // channel which stores the new arrival times
 	arrivalChan     chan bool  // channel that triggers new open loop requests
+
+	startTime time.Time
 }
 
 /*
@@ -138,7 +143,7 @@ func (c *Client) Epilogue() {
 */
 
 func (c *Client) OpenLoopClient() {
-
+	c.startTime = time.Now()
 	c.generateArrivalTimes()
 
 	go func() {
@@ -297,6 +302,13 @@ func (c *Client) getFloat64List(list []int64) []float64 {
 */
 func (c *Client) writeToLog() {
 
+	f, err := os.Create(Conf.LogFilePath + Conf.Id + ".txt") // log file
+	if err != nil {
+		fmt.Print("Error creating the output log file")
+		log.Fatal(err)
+	}
+	defer f.Close()
+
 	var latencyList []int64 // contains the time duration spent for each successful request in micro seconds
 	noResponses := 0        // number of requests for which no response was received
 	totalRequests := 0      // total number of requests sent
@@ -305,6 +317,7 @@ func (c *Client) writeToLog() {
 		if c.CommandLog[i].Sent == true { // if this slot was used before
 			if c.CommandLog[i].Duration != 0 { // if we got a response
 				latencyList = c.addValueNToArrayMTimes(latencyList, c.CommandLog[i].Duration.Microseconds(), Conf.ClientBatchSize)
+				c.printRequests(i, c.CommandLog[i].SendTime.Sub(c.startTime).Microseconds(), c.CommandLog[i].ReceiveTime.Sub(c.startTime).Microseconds(), f)
 			} else { // no response
 				noResponses += Conf.ClientBatchSize
 			}
@@ -326,12 +339,12 @@ func (c *Client) writeToLog() {
 		Int64("p99Latency micro seconds", int64(percentile99)).
 		Float64("Throughput (requests /sec)", throughput)
 
-	fmt.Printf("  Total Sent Requests:= %v ", c.SentSoFar)
-	fmt.Printf("  Total Received Responses:= %v   ", c.ReceivedSoFar)
-	fmt.Printf("  Throughput (successfully committed requests) := %v requests per second  ", throughput)
-	fmt.Printf("  Median Latency := %v micro seconds per request ", medianLatency)
-	fmt.Printf("  99 pecentile latency := %v micro seconds per request ", percentile99)
-	fmt.Printf("  Error Rate := %v \n", float64(errorRate))
+	fmt.Printf("\nTotal Sent Requests:= %v ", c.SentSoFar)
+	fmt.Printf("\nTotal Received Responses:= %v   ", c.ReceivedSoFar)
+	fmt.Printf("\nThroughput (successfully committed requests) := %v requests per second  ", throughput)
+	fmt.Printf("\nMedian Latency := %v micro seconds per request ", medianLatency)
+	fmt.Printf("\n99 pecentile latency := %v micro seconds per request ", percentile99)
+	fmt.Printf("\nError Rate := %v \n", float64(errorRate))
 }
 
 /*
@@ -343,4 +356,14 @@ func (c *Client) addValueNToArrayMTimes(list []int64, N int64, M int) []int64 {
 		list = append(list, N)
 	}
 	return list
+}
+
+/*
+	Print a client request batch with arrival time and end time w.r.t test start time
+*/
+
+func (c *Client) printRequests(j int, startTime int64, endTime int64, f *os.File) {
+	for i := 0; i < Conf.ClientBatchSize; i++ {
+		_, _ = f.WriteString(strconv.FormatInt(int64(j), 10)+"."+strconv.FormatInt(int64(i), 10)+ "," + strconv.Itoa(int(startTime)) + "," + strconv.Itoa(int(endTime)) + "\n")
+	}
 }
