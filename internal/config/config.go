@@ -1,17 +1,17 @@
 /*
-    Copyright 2021 Rabia Research Team and Developers
+   Copyright 2021 Rabia Research Team and Developers
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+      http://www.apache.org/licenses/LICENSE-2.0
 
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 */
 package config
 
@@ -102,6 +102,8 @@ type Config struct {
 	ConsensusStartAfter time.Duration // after this time, the consensus executor will start working (this variable is for saturating the system with open-loop clients)
 	StorageMode         int           // 0: the dictionary KV store, 1: Redis GET&SET, 2: Redis MGET&MSET
 	RedisAddr           []string      // only used when StorageMode is 1 or 2
+
+	LogFilePath string // log file path
 }
 
 func (c *Config) LoadConfigs() {
@@ -144,6 +146,8 @@ func (c *Config) loadEnvVars2() {
 	Conf.ClientThinkTime = getEnvInt("Rabia_ClientThinkTime")
 	Conf.NClientRequests = getEnvInt("Rabia_ClientNRequests")
 	Conf.ClientArrivalRate = getEnvInt("Rabia_ClientArrivalRate")
+
+	Conf.LogFilePath = getEnvStr("LogFilePath")
 }
 
 func (c *Config) CalcConstants() {
