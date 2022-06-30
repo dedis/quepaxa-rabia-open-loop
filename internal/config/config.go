@@ -174,8 +174,8 @@ func (c *Config) CalcConstants() {
 }
 
 func (c *Config) loadRedisVars() {
-	c.StorageMode = 0
-	c.RedisAddr = []string{"localhost:6379", "localhost:6380", "localhost:6381"}
+	c.StorageMode = getEnvInt("Rabia_StorageMode")
+	c.RedisAddr = []string{"localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379", "localhost:6379"}
 }
 
 func getEnvStr(key string) string {
