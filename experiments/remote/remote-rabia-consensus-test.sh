@@ -6,8 +6,8 @@ RCFolder="/home/pasindu/rabia"
 NServers=3
 NFaulty=1
 NClients=3
-ClientBatchSize=50
-ProxyBatchSize=50
+ClientBatchSize=100
+ProxyBatchSize=100
 ClientTimeout=60 # test duration
 ProxyBatchTimeout=5
 RC_Peers_N="10.156.33.140:10090,10.156.33.141:10091,10.156.33.142:10092"
@@ -21,10 +21,6 @@ replica2=pasindu@dedis-141.icsil1.epfl.ch
 replica2_cert="/home/pasindu/Pictures/pasindu_rsa"
 replica3=pasindu@dedis-142.icsil1.epfl.ch
 replica3_cert="/home/pasindu/Pictures/pasindu_rsa"
-#replica4=pasindu@dedis-143.icsil1.epfl.ch
-#replica4_cert="/home/pasindu/Pictures/pasindu_rsa"
-#replica5=pasindu@dedis-144.icsil1.epfl.ch
-#replica5_cert="/home/pasindu/Pictures/pasindu_rsa"
 
 client1=pasindu@dedis-145.icsil1.epfl.ch
 client1_cert="/home/pasindu/Pictures/pasindu_rsa"
@@ -32,21 +28,11 @@ client2=pasindu@dedis-146.icsil1.epfl.ch
 client2_cert="/home/pasindu/Pictures/pasindu_rsa"
 client3=pasindu@dedis-147.icsil1.epfl.ch
 client3_cert="/home/pasindu/Pictures/pasindu_rsa"
-#client4=pasindu@dedis-148.icsil1.epfl.ch
-#client4_cert="/home/pasindu/Pictures/pasindu_rsa"
-#client5=pasindu@dedis-149.icsil1.epfl.ch
-#client5_cert="/home/pasindu/Pictures/pasindu_rsa"
 
 replica6=pasindu@dedis-143.icsil1.epfl.ch
 replica6_cert="/home/pasindu/Pictures/pasindu_rsa"
 
-rm ${output_path}0.log
-rm ${output_path}1.log
-rm ${output_path}2.log
-rm ${output_path}3.log
-rm ${output_path}4.log
-rm ${output_path}5.txt
-rm ${output_path}6.log
+rm -r ${output_path}; mkdir ${output_path}
 
 echo "Removed old log files"
 
@@ -106,10 +92,6 @@ sleep 20
 scp -i ${client1_cert} ${client1}:${remote_log_path}0.txt ${output_path}5.txt
 scp -i ${client2_cert} ${client2}:${remote_log_path}1.txt ${output_path}6.txt
 scp -i ${client3_cert} ${client3}:${remote_log_path}2.txt ${output_path}7.txt
-
-dst_directory="/home/pasindu/Desktop/Test/Rabia/${arrivalRate}/"
-mkdir -p "${dst_directory}"
-cp -r ${output_path} "${dst_directory}"
 
 sshpass ssh -i ${replica1_cert} ${replica1} "pkill rabia; pkill rabia; pkill rabia "
 sshpass ssh -i ${replica2_cert} ${replica2} "pkill rabia; pkill rabia; pkill rabia "
