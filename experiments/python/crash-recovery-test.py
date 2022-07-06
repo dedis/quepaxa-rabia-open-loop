@@ -4,7 +4,7 @@ import os
 import atexit
 import time
 
-print("Starting crash recovery script")
+print("starting crash recovery script")
 sys.stdout.flush()
 process_logs = [sys.argv[1], sys.argv[2], sys.argv[3]]
 
