@@ -53,7 +53,7 @@ nohup ./${Rabia_Path} >${RCFolder}6.log &
 sleep 10
 
 # crash recovery script
-nohup python3 experiments/python/crash-recovery-test.py logs/0.log logs/1.log logs/2.log 0 >${RCFolder}python-consensus-crash.log &
+nohup python3 experiments/python/crash-recovery-test.py logs/0.log logs/1.log logs/2.log >${RCFolder}python-consensus-crash.log &
 echo "started crash recovery script"
 
 sleep 80

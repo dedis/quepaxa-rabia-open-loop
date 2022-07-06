@@ -9,10 +9,6 @@ replica2=pasindu@dedis-141.icsil1.epfl.ch
 replica2_cert="/home/pasindu/Pictures/pasindu_rsa"
 replica3=pasindu@dedis-142.icsil1.epfl.ch
 replica3_cert="/home/pasindu/Pictures/pasindu_rsa"
-#replica4=pasindu@dedis-143.icsil1.epfl.ch
-#replica4_cert="/home/pasindu/Pictures/pasindu_rsa"
-#replica5=pasindu@dedis-144.icsil1.epfl.ch
-#replica5_cert="/home/pasindu/Pictures/pasindu_rsa"
 
 client1=pasindu@dedis-145.icsil1.epfl.ch
 client1_cert="/home/pasindu/Pictures/pasindu_rsa"
@@ -20,15 +16,11 @@ client2=pasindu@dedis-146.icsil1.epfl.ch
 client2_cert="/home/pasindu/Pictures/pasindu_rsa"
 client3=pasindu@dedis-147.icsil1.epfl.ch
 client3_cert="/home/pasindu/Pictures/pasindu_rsa"
-#client4=pasindu@dedis-148.icsil1.epfl.ch
-#client4_cert="/home/pasindu/Pictures/pasindu_rsa"
-#client5=pasindu@dedis-149.icsil1.epfl.ch
-#client5_cert="/home/pasindu/Pictures/pasindu_rsa"
 
 replica6=pasindu@dedis-143.icsil1.epfl.ch
 replica6_cert="/home/pasindu/Pictures/pasindu_rsa"
 
-local_rabia_path="experiments/binary/rabia"
+local_rabia_path="rabia"
 replica_home_path="/home/pasindu/rabia/"
 
 echo "Replica 1"
@@ -51,16 +43,6 @@ sshpass ssh ${replica6} -i ${replica6_cert} ${reset_directory}
 sshpass ssh ${replica6} -i ${replica6_cert} ${kill_insstances}
 scp -i ${replica6_cert} ${local_rabia_path} ${replica6}:${replica_home_path}
 
-#echo "Replica 4"
-#sshpass ssh ${replica4} -i ${replica4_cert} ${reset_directory}
-#sshpass ssh ${replica4} -i ${replica4_cert} ${kill_insstances}
-#scp -i ${replica4_cert} ${local_rabia_path} ${replica4}:${replica_home_path}
-#
-#echo "Replica 5"
-#sshpass ssh ${replica5} -i ${replica5_cert} ${reset_directory}
-#sshpass ssh ${replica5} -i ${replica5_cert} ${kill_insstances}
-#scp -i ${replica5_cert} ${local_rabia_path} ${replica5}:${replica_home_path}
-
 echo "Client 1"
 sshpass ssh ${client1} -i ${client1_cert} ${reset_directory}
 sshpass ssh ${client1} -i ${client1_cert} ${kill_insstances}
@@ -75,15 +57,5 @@ echo "Client 3"
 sshpass ssh ${client3} -i ${client3_cert} ${reset_directory}
 sshpass ssh ${client3} -i ${client3_cert} ${kill_insstances}
 scp -i ${client3_cert} ${local_rabia_path} ${client3}:${replica_home_path}
-
-#echo "Client 4"
-#sshpass ssh ${client4} -i ${client4_cert} ${reset_directory}
-#sshpass ssh ${client4} -i ${client4_cert} ${kill_insstances}
-#scp -i ${client4_cert} ${local_rabia_path} ${client4}:${replica_home_path}
-#
-#echo "Client 5"
-#sshpass ssh ${client5} -i ${client5_cert} ${reset_directory}
-#sshpass ssh ${client5} -i ${client5_cert} ${kill_insstances}
-#scp -i ${client5_cert} ${local_rabia_path} ${client5}:${replica_home_path}
 
 echo "setup complete"
