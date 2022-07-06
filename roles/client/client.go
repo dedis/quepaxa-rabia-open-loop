@@ -120,7 +120,7 @@ func ClientInit(clientId uint32, proxyIp string, arrivalRate int) *Client {
 func (c *Client) Prologue() {
 	go system.SigListen(c.Done) //
 	c.TCP.Connect()
-	go c.terminalLogger()
+	// go c.terminalLogger()
 }
 
 /*
@@ -189,7 +189,7 @@ func (c *Client) startScheduler() {
 }
 
 /*
-	Generates Poisson arrival times
+	Generates Poisson arrival times in a seperate thread
 */
 
 func (c *Client) generateArrivalTimes() {
