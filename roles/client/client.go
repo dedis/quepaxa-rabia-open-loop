@@ -99,8 +99,8 @@ func ClientInit(clientId uint32, proxyIp string, arrivalRate int) *Client {
 
 		CommandLog:      make([]BatchedCmdLog, 0),
 		arrivalRate:     arrivalRate,
-		arrivalTimeChan: make(chan int64, Conf.LenChannel),
-		arrivalChan:     make(chan bool, Conf.LenChannel),
+		arrivalTimeChan: make(chan int64, 1000000),
+		arrivalChan:     make(chan bool, 1000000),
 	}
 	/*
 		SentSoFar, ReceivedSoFar are zeros are initialization
@@ -168,8 +168,7 @@ func (c *Client) OpenLoopClient() {
 	}()
 
 	c.startScheduler()                       // this runs in the main loop
-	time.Sleep(10 * time.Second)             // for inflight requests
-	time.Sleep(time.Duration(rand.Intn(10))) // a hack to avoid clients finishing at the same time
+	time.Sleep(20 * time.Second)             // for inflight requests
 }
 
 /*

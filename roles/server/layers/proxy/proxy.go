@@ -7,11 +7,11 @@
 
        http://www.apache.org/licenses/LICENSE-2.0
 
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 */
 /*
 	The proxy package defines the proxy/application layer of a server. The proxy connects to one or more Rabia clients
@@ -24,8 +24,6 @@ package proxy
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
-	"github.com/rs/zerolog"
 	"os"
 	. "rabia/internal/config"
 	"rabia/internal/ledger"
@@ -34,6 +32,9 @@ import (
 	"rabia/internal/tcp"
 	"sync"
 	"time"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/rs/zerolog"
 )
 
 /*
