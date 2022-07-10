@@ -167,8 +167,8 @@ func (c *Client) OpenLoopClient() {
 		}
 	}()
 
-	c.startScheduler()                       // this runs in the main loop
-	time.Sleep(20 * time.Second)             // for inflight requests
+	c.startScheduler()           // this runs in the main loop
+	time.Sleep(20 * time.Second) // for inflight requests
 }
 
 /*
@@ -338,9 +338,8 @@ func (c *Client) writeToLog() {
 		Int64("p99Latency micro seconds", int64(percentile99)).
 		Float64("Throughput (requests /sec)", throughput)
 
-	fmt.Printf("\nTotal Sent Requests:= %v ", c.SentSoFar)
-	fmt.Printf("\nTotal Received Responses:= %v   ", c.ReceivedSoFar)
-	fmt.Printf("\nThroughput (successfully committed requests) := %v requests per second  ", throughput)
+	fmt.Printf("\nTotal time := %v seconds\n", Conf.ClientTimeout.Seconds())
+	fmt.Printf("Throughput (successfully committed requests) := %v requests per second  ", throughput)
 	fmt.Printf("\nMedian Latency := %v micro seconds per request ", medianLatency)
 	fmt.Printf("\n99 pecentile latency := %v micro seconds per request ", percentile99)
 	fmt.Printf("\nError Rate := %v \n", float64(errorRate))
@@ -363,6 +362,6 @@ func (c *Client) addValueNToArrayMTimes(list []int64, N int64, M int) []int64 {
 
 func (c *Client) printRequests(j int, startTime int64, endTime int64, f *os.File) {
 	for i := 0; i < Conf.ClientBatchSize; i++ {
-		_, _ = f.WriteString(strconv.FormatInt(int64(j), 10)+"."+strconv.FormatInt(int64(i), 10)+ "," + strconv.Itoa(int(startTime)) + "," + strconv.Itoa(int(endTime)) + "\n")
+		_, _ = f.WriteString(strconv.FormatInt(int64(j), 10) + "." + strconv.FormatInt(int64(i), 10) + "," + strconv.Itoa(int(startTime)) + "," + strconv.Itoa(int(endTime)) + "\n")
 	}
 }
