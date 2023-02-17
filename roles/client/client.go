@@ -13,22 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-/*
-	The client package defines the struct and functions of a Rabia client. The client sends batches of requests one after another
- 	in a poisson loop for a ClientTimeout period. Each request contains one more key-value store operations.
 
-	Note:
-
-	1. The purpose of ClientBatchSize:
-
-	When ClientBatchSize = 1, each Client routine can be conceived as a KV store client, i.e., a kv-store client
-	process that sends one request and receives one reply at a time.
-
-	When ClientBatchSize = n >= 1, each Client routine can be conceived as a client proxy, which batches one or more
-	kv-store client processes' requests, and sends a batch of requests and receives a batch of requests at a time.
-
-	See comments in msg.proto for more discussion.
-*/
 package client
 
 import (
@@ -189,7 +174,7 @@ func (c *Client) startScheduler() {
 }
 
 /*
-	Generates Poisson arrival times in a seperate thread
+	Generates Poisson arrival times in a separate thread
 */
 
 func (c *Client) generateArrivalTimes() {
