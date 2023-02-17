@@ -59,6 +59,6 @@ done
 
 
 mkdir -p /home/pasindu/Desktop/rabia/"${arrivalRate}"/"${ClientBatchSize}"/"${ProxyBatchSize}"/"${ProxyBatchTimeout}"/
-cp logs/ /home/pasindu/Desktop/rabia/"${arrivalRate}"/"${ClientBatchSize}"/"${ProxyBatchSize}"/"${ProxyBatchTimeout}"/
+cp -r logs/ /home/pasindu/Desktop/rabia/"${arrivalRate}"/"${ClientBatchSize}"/"${ProxyBatchSize}"/"${ProxyBatchTimeout}"/
 
 echo "finish test"
