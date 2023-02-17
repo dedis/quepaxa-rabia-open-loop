@@ -1,5 +1,8 @@
 # A simple test that tests rabia by sending client requests
 arrivalRate=$1
+ClientBatchSize=$2
+ProxyBatchSize=$3
+ProxyBatchTimeout=$4 # milli seconds
 
 go build
 
@@ -9,10 +12,7 @@ RCFolder="/home/pasindu/Documents/rabia/logs/"
 NServers=3
 NFaulty=1
 NClients=3
-ClientBatchSize=50
-ProxyBatchSize=50
 ClientTimeout=60 # test duration
-ProxyBatchTimeout=5
 RC_Peers_N="localhost:10090,localhost:10091,localhost:10092"
 
 rm -r logs/ ; mkdir logs/
@@ -50,13 +50,7 @@ nohup ./${Rabia_Path} >${RCFolder}5.log &
 export RC_Role=ctrl
 nohup ./${Rabia_Path} >${RCFolder}6.log &
 
-sleep 10
-
-# crash recovery script
-nohup python3 experiments/python/crash-recovery-test.py logs/0.log logs/1.log logs/2.log >${RCFolder}python-consensus-crash.log &
-echo "started crash recovery script"
-
-sleep 80
+sleep 100
 
 # kill instances
 for i in 1 2 3 4 5 6 7 8 9 10; do
