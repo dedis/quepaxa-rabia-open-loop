@@ -5,17 +5,17 @@ kill_insstances="pkill rabia ; pkill rabia; pkill rabia"
 
 cert="/home/pasindu/Documents/rabia/experiments/remote/private_key_aws/pasindu2023.pem"
 
-replica1=ubuntu@ec2-34-224-78-11.compute-1.amazonaws.com
-replica2=ubuntu@ec2-18-207-143-224.compute-1.amazonaws.com
-replica3=ubuntu@ec2-54-90-145-152.compute-1.amazonaws.com
-replica4=ubuntu@ec2-184-72-141-58.compute-1.amazonaws.com
-replica5=ubuntu@ec2-54-91-91-186.compute-1.amazonaws.com
+replica1=ubuntu@ec2-54-94-113-24.sa-east-1.compute.amazonaws.com
+replica2=ubuntu@ec2-54-178-123-123.ap-northeast-1.compute.amazonaws.com
+replica3=ubuntu@ec2-13-233-14-202.ap-south-1.compute.amazonaws.com
+replica4=ubuntu@ec2-3-1-5-83.ap-southeast-1.compute.amazonaws.com
+replica5=ubuntu@ec2-34-247-105-45.eu-west-1.compute.amazonaws.com
 
-client1=ubuntu@ec2-3-95-239-214.compute-1.amazonaws.com
-client2=ubuntu@ec2-34-239-247-39.compute-1.amazonaws.com
-client3=ubuntu@ec2-54-227-84-218.compute-1.amazonaws.com
-client4=ubuntu@ec2-54-82-109-207.compute-1.amazonaws.com
-client5=ubuntu@ec2-3-87-78-76.compute-1.amazonaws.com
+client1=ubuntu@ec2-15-228-241-95.sa-east-1.compute.amazonaws.com
+client2=ubuntu@ec2-18-181-182-155.ap-northeast-1.compute.amazonaws.com
+client3=ubuntu@ec2-3-108-41-221.ap-south-1.compute.amazonaws.com
+client4=ubuntu@ec2-54-179-70-76.ap-southeast-1.compute.amazonaws.com
+client5=ubuntu@ec2-3-249-212-182.eu-west-1.compute.amazonaws.com
 
 local_replica_path="rabia"
 local_client_path="rabia"
