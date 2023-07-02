@@ -101,4 +101,18 @@ sleep 80
 
 echo "Completed Client[s]"
 
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${replica1} "${kill_command}"
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${replica2} "${kill_command}"
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${replica3} "${kill_command}"
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${replica4} "${kill_command}"
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${replica5} "${kill_command}"
+
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${client1} "${kill_command}"
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${client2} "${kill_command}"
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${client3} "${kill_command}"
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${client4} "${kill_command}"
+sshpass ssh -o "StrictHostKeyChecking no"  -i ${cert} ${client5} "${kill_command}"
+
+Sleep 10
+
 echo "Finish test"
