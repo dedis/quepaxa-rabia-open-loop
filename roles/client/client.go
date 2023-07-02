@@ -29,6 +29,7 @@ import (
 	"rabia/internal/system"
 	"rabia/internal/tcp"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/montanaflynn/stats"
@@ -60,12 +61,15 @@ type Client struct {
 
 	CommandLog               []BatchedCmdLog
 	SentSoFar, ReceivedSoFar int
+	receiveMutex             *sync.Mutex
 
 	arrivalRate     int        // requests per second poisson rate as specified
 	arrivalTimeChan chan int64 // channel which stores the new arrival times
 	arrivalChan     chan bool  // channel that triggers new open loop requests
 
 	startTime time.Time
+
+	window int
 }
 
 /*
@@ -83,13 +87,14 @@ func ClientInit(clientId uint32, proxyIp string, arrivalRate int) *Client {
 		LogFile: logFile,
 
 		CommandLog:      make([]BatchedCmdLog, 0),
+		SentSoFar:       0,
+		ReceivedSoFar:   0,
+		receiveMutex:    &sync.Mutex{},
 		arrivalRate:     arrivalRate,
 		arrivalTimeChan: make(chan int64, 1000000),
 		arrivalChan:     make(chan bool, 1000000),
+		window:          1000,
 	}
-	/*
-		SentSoFar, ReceivedSoFar are zeros are initialization
-	*/
 
 	pid := os.Getpid()
 	fmt.Printf("initialized client %v with process id: %v \n", c.ClientId, pid)
@@ -135,10 +140,16 @@ func (c *Client) OpenLoopClient() {
 		i := 0
 		for true {
 			numRequests := 0
-			for !(numRequests == Conf.ClientBatchSize) {
+			for numRequests < Conf.ClientBatchSize {
 				_ = <-c.arrivalChan // keep collecting new requests arrivals
 				numRequests++
 			}
+			c.receiveMutex.Lock()
+			if c.SentSoFar-c.ReceivedSoFar > c.window*Conf.ClientBatchSize {
+				c.receiveMutex.Unlock()
+				continue
+			}
+			c.receiveMutex.Unlock()
 			c.sendOneRequest(i)
 			i++
 		}
@@ -240,36 +251,6 @@ func (c *Client) processOneReply(rep Command) {
 }
 
 /*
-	A terminal logger that prints the status of a client to terminal
-*/
-func (c *Client) terminalLogger() {
-	tLogger, file := logger.InitLogger("client", c.ClientId, 1, "both")
-	defer func() {
-		if err := file.Sync(); err != nil {
-			panic(err)
-		}
-	}()
-	ticker := time.NewTicker(Conf.ClientLogInterval)
-
-	lastRecv, thisRecv := 0, 0
-	for {
-		select {
-		case <-c.Done:
-			return
-		case <-ticker.C:
-			thisRecv = c.ReceivedSoFar
-			tho := math.Round(float64(thisRecv-lastRecv) / Conf.ClientLogInterval.Seconds())
-			tLogger.Warn().
-				Uint32("Client Id", c.ClientId).
-				Int("Sent", c.SentSoFar).
-				Int("Recv", thisRecv).
-				Float64("Interval Recv Tput (cmd/sec)", tho).Msg("")
-			lastRecv = thisRecv
-		}
-	}
-}
-
-/*
 	Converts int[] to float64[]
 */
 
@@ -280,6 +261,8 @@ func (c *Client) getFloat64List(list []int64) []float64 {
 	}
 	return array
 }
+
+const CLIENT_TIMEOUT = 2000000
 
 /*
 	Calculate stats
@@ -296,14 +279,23 @@ func (c *Client) writeToLog() {
 	var latencyList []int64 // contains the time duration spent for each successful request in micro seconds
 	noResponses := 0        // number of requests for which no response was received
 	totalRequests := 0      // total number of requests sent
+	responses := 0
 
 	for i := 0; i < len(c.CommandLog); i++ {
 		if c.CommandLog[i].Sent == true { // if this slot was used before
 			if c.CommandLog[i].Duration != 0 { // if we got a response
-				latencyList = c.addValueNToArrayMTimes(latencyList, c.CommandLog[i].Duration.Microseconds(), Conf.ClientBatchSize)
-				c.printRequests(i, c.CommandLog[i].SendTime.Sub(c.startTime).Microseconds(), c.CommandLog[i].ReceiveTime.Sub(c.startTime).Microseconds(), f)
+				if c.CommandLog[i].Duration.Microseconds() < CLIENT_TIMEOUT {
+					latencyList = c.addValueNToArrayMTimes(latencyList, c.CommandLog[i].Duration.Microseconds(), Conf.ClientBatchSize)
+					c.printRequests(i, c.CommandLog[i].SendTime.Sub(c.startTime).Microseconds(), c.CommandLog[i].ReceiveTime.Sub(c.startTime).Microseconds(), f)
+					responses += Conf.ClientBatchSize
+				} else {
+					latencyList = c.addValueNToArrayMTimes(latencyList, CLIENT_TIMEOUT, Conf.ClientBatchSize)
+					c.printRequests(i, c.CommandLog[i].SendTime.Sub(c.startTime).Microseconds(), c.CommandLog[i].SendTime.Sub(c.startTime).Microseconds()+CLIENT_TIMEOUT, f)
+				}
 			} else { // no response
 				noResponses += Conf.ClientBatchSize
+				latencyList = c.addValueNToArrayMTimes(latencyList, CLIENT_TIMEOUT, Conf.ClientBatchSize)
+				c.printRequests(i, c.CommandLog[i].SendTime.Sub(c.startTime).Microseconds(), c.CommandLog[i].SendTime.Sub(c.startTime).Microseconds()+CLIENT_TIMEOUT, f)
 			}
 			totalRequests += Conf.ClientBatchSize
 		}
@@ -311,20 +303,10 @@ func (c *Client) writeToLog() {
 
 	medianLatency, _ := stats.Median(c.getFloat64List(latencyList))
 	percentile99, _ := stats.Percentile(c.getFloat64List(latencyList), 99.0) // tail latency
-	throughput := float64(len(latencyList)) / Conf.ClientTimeout.Seconds()
-	errorRate := (noResponses) * 100 / totalRequests
+	throughput := float64(responses) / Conf.ClientTimeout.Seconds()
+	errorRate := (totalRequests - responses) * 100 / totalRequests
 
-	c.Logger.Warn().
-		Uint32("ClientId", c.ClientId).
-		Int("TotalSent", c.SentSoFar).
-		Int("TotalRecv", c.ReceivedSoFar).
-		Int("Error rate", errorRate).
-		Int64("p50Latency micro seconds", int64(medianLatency)).
-		Int64("p99Latency micro seconds", int64(percentile99)).
-		Float64("Throughput (requests /sec)", throughput)
-
-	fmt.Printf("\nTotal time := %v seconds\n", Conf.ClientTimeout.Seconds())
-	fmt.Printf("Throughput (successfully committed requests) := %v requests per second  ", throughput)
+	fmt.Printf("Throughput := %v requests per second  ", throughput)
 	fmt.Printf("\nMedian Latency := %v micro seconds per request ", medianLatency)
 	fmt.Printf("\n99 pecentile latency := %v micro seconds per request ", percentile99)
 	fmt.Printf("\nError Rate := %v \n", float64(errorRate))
